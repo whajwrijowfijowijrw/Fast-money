@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Free Money Clicker App</title>
+    <!-- Use Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #1a202c;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div class="container bg-white rounded-3xl shadow-2xl p-8 m-4 text-center">
+        <!-- Disclaimer -->
+        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-6" role="alert">
+            <strong class="font-bold">Disclaimer:</strong>
+            <span class="block sm:inline"> This is a simulated application for entertainment purposes only. No real money will be earned or transferred.</span>
+        </div>
+
+        <h1 class="text-4xl font-extrabold text-blue-600 mb-2">Money Clicker</h1>
+        <p class="text-sm text-gray-500 mb-6">Click to earn and reach your daily limit!</p>
+
+        <!-- Balance and Limit Display -->
+        <div class="mb-8">
+            <div class="text-sm font-semibold text-gray-500">Your Balance:</div>
+            <div id="balance-display" class="text-6xl font-black text-green-500 mb-2 transition-transform transform hover:scale-105 duration-200">₱0.00</div>
+            <div class="text-sm font-semibold text-gray-500">Daily Limit: <span id="limit-display" class="text-gray-800">₱0.00 / ₱20.00</span></div>
+        </div>
+
+        <!-- Earning Button -->
+        <button id="click-button" class="w-full bg-blue-500 text-white font-bold py-4 px-6 rounded-2xl shadow-lg hover:bg-blue-600 transition-all duration-300 transform active:scale-95 disabled:bg-gray-400">
+            Click to Earn ₱0.01
+        </button>
+        <p id="message-area" class="text-red-500 text-sm mt-4"></p>
+
+        <!-- Cash Out Button -->
+        <button id="cashout-button" class="w-full bg-green-500 text-white font-bold py-3 px-6 rounded-2xl shadow-lg mt-4 hover:bg-green-600 transition-all duration-300 transform active:scale-95 disabled:bg-gray-400">
+            Cash Out
+        </button>
+
+        <!-- Cash Out Modal (initially hidden) -->
+        <div id="cashout-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 hidden p-4">
+            <div class="bg-white rounded-3xl p-8 shadow-2xl w-full max-w-sm">
+                <h2 class="text-2xl font-bold mb-4">Cash Out Your Earnings</h2>
+                <div class="mb-4">
+                    <label for="paypal-email" class="block text-gray-700 font-semibold mb-2 text-left">PayPal Email:</label>
+                    <input type="email" id="paypal-email" placeholder="enter your email here" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+                    <button id="confirm-cashout" class="flex-1 bg-green-500 text-white font-bold py-3 rounded-xl hover:bg-green-600 transition-colors duration-300">
+                        Confirm Cash Out
+                    </button>
+                    <button id="cancel-cashout" class="flex-1 bg-red-500 text-white font-bold py-3 rounded-xl hover:bg-red-600 transition-colors duration-300">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Success Message Modal (initially hidden) -->
+        <div id="success-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 hidden p-4">
+            <div class="bg-white rounded-3xl p-8 shadow-2xl w-full max-w-sm text-center">
+                <div class="text-green-500 mb-4">
+                    <svg class="w-16 h-16 mx-auto animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-bold mb-2 text-green-700">Cashout Successful!</h2>
+                <p class="text-gray-500 mb-4">Your simulated earnings have been cashed out.</p>
+                <button id="close-success-modal" class="bg-blue-500 text-white font-bold py-3 px-6 rounded-xl hover:bg-blue-600 transition-colors duration-300">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Use a self-invoking function to avoid global variables
+        (function() {
+            // DOM element references
+            const balanceDisplay = document.getElementById('balance-display');
+            const limitDisplay = document.getElementById('limit-display');
+            const clickButton = document.getElementById('click-button');
+            const cashoutButton = document.getElementById('cashout-button');
+            const cashoutModal = document.getElementById('cashout-modal');
+            const successModal = document.getElementById('success-modal');
+            const confirmCashoutButton = document.getElementById('confirm-cashout');
+            const cancelCashoutButton = document.getElementById('cancel-cashout');
+            const closeSuccessModalButton = document.getElementById('close-success-modal');
+            const paypalEmailInput = document.getElementById('paypal-email');
+            const messageArea = document.getElementById('message-area');
+
+            // Constants
+            const EARNING_PER_CLICK = 0.01;
+            const DAILY_LIMIT = 20.00;
+            const STORAGE_KEY_BALANCE = 'clickerBalance';
+            const STORAGE_KEY_DAILY_EARNED = 'clickerDailyEarned';
+            const STORAGE_KEY_LAST_CLICK_DATE = 'clickerLastClickDate';
+
+            // State variables
+            let currentBalance = 0;
+            let dailyEarned = 0;
+
+            /**
+             * Initializes the application by loading state from local storage.
+             */
+            function initialize() {
+                // Check if the date has changed to reset the daily limit
+                const lastClickDate = localStorage.getItem(STORAGE_KEY_LAST_CLICK_DATE);
+                const today = new Date().toDateString();
+
+                if (lastClickDate !== today) {
+                    // Reset daily earned amount if it's a new day
+                    localStorage.setItem(STORAGE_KEY_DAILY_EARNED, '0');
+                }
+
+                // Load balance and daily earned amount from local storage
+                const savedBalance = parseFloat(localStorage.getItem(STORAGE_KEY_BALANCE));
+                const savedDailyEarned = parseFloat(localStorage.getItem(STORAGE_KEY_DAILY_EARNED));
+
+                // If saved values exist, use them. Otherwise, start from 0.
+                if (!isNaN(savedBalance)) {
+                    currentBalance = savedBalance;
+                }
+                if (!isNaN(savedDailyEarned)) {
+                    dailyEarned = savedDailyEarned;
+                }
+
+                // Update the UI
+                updateUI();
+            }
+
+            /**
+             * Updates the UI elements with the current state.
+             */
+            function updateUI() {
+                balanceDisplay.textContent = `₱${currentBalance.toFixed(2)}`;
+                limitDisplay.textContent = `₱${dailyEarned.toFixed(2)} / ₱${DAILY_LIMIT.toFixed(2)}`;
+
+                // Disable the click button if the daily limit is reached
+                if (dailyEarned >= DAILY_LIMIT) {
+                    clickButton.disabled = true;
+                    messageArea.textContent = 'Daily earnings limit reached!';
+                } else {
+                    clickButton.disabled = false;
+                    messageArea.textContent = '';
+                }
+
+                // Disable cashout button if balance is zero or less
+                if (currentBalance <= 0) {
+                    cashoutButton.disabled = true;
+                } else {
+                    cashoutButton.disabled = false;
+                }
+            }
+
+            /**
+             * Handles the click event for earning money.
+             */
+            function handleEarnClick() {
+                // Prevent earning if the daily limit is reached
+                if (dailyEarned >= DAILY_LIMIT) {
+                    return;
+                }
+
+                // Increment the balance and daily earnings
+                currentBalance += EARNING_PER_CLICK;
+                dailyEarned += EARNING_PER_CLICK;
+
+                // Update local storage
+                localStorage.setItem(STORAGE_KEY_BALANCE, currentBalance.toFixed(2));
+                localStorage.setItem(STORAGE_KEY_DAILY_EARNED, dailyEarned.toFixed(2));
+                localStorage.setItem(STORAGE_KEY_LAST_CLICK_DATE, new Date().toDateString());
+
+                // Update the UI
+                updateUI();
+            }
+
+            /**
+             * Shows the cashout modal.
+             */
+            function showCashoutModal() {
+                cashoutModal.classList.remove('hidden');
+                paypalEmailInput.value = ''; // Clear the input field
+            }
+
+            /**
+             * Hides the cashout modal.
+             */
+            function hideCashoutModal() {
+                cashoutModal.classList.add('hidden');
+            }
+
+            /**
+             * Handles the confirmation of cashout.
+             */
+            function handleConfirmCashout() {
+                const email = paypalEmailInput.value;
+
+                // Simple validation to ensure the email field is not empty
+                if (email.trim() === '') {
+                    alert('Please enter a PayPal email.'); // NOTE: In a production app, use a custom modal instead of alert.
+                    return;
+                }
+
+                // Simulate the cashout process
+                // In a real application, this would send a request to a server
+                // and handle the payment transaction.
+
+                // Reset the balance to zero
+                currentBalance = 0;
+                localStorage.setItem(STORAGE_KEY_BALANCE, '0');
+
+                // Hide the cashout modal and show the success modal
+                hideCashoutModal();
+                successModal.classList.remove('hidden');
+                updateUI();
+            }
+
+            /**
+             * Hides the success modal.
+             */
+            function hideSuccessModal() {
+                successModal.classList.add('hidden');
+            }
+
+            // Event Listeners
+            clickButton.addEventListener('click', handleEarnClick);
+            cashoutButton.addEventListener('click', showCashoutModal);
+            confirmCashoutButton.addEventListener('click', handleConfirmCashout);
+            cancelCashoutButton.addEventListener('click', hideCashoutModal);
+            closeSuccessModalButton.addEventListener('click', hideSuccessModal);
+
+            // Initialize the app on page load
+            window.onload = initialize;
+        })();
+    </script>
+</body>
+</html>
